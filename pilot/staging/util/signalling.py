@@ -14,7 +14,7 @@ import os
 import signal
 import threading
 
-from pilot.util.signalslot import Signal
+from signalslot import Signal
 
 import logging
 logger = logging.getLogger(__name__)
@@ -135,5 +135,8 @@ def signal_all_setup(func=None, params=None):
         for i in ['SIGINT', 'SIGHUP', 'SIGTERM', 'SIGUSR1', 'SIGUSR2', 'SIGFPE',
                   'SIGQUIT', 'SIGSEGV', 'SIGXCPU', 'SIGBUS', 'SIGILL', 'SIGBREAK']:
             if hasattr(signal, i):
-                signal.signal(getattr(signal, i), functools.partial(_receiver.__call__, params))
+                try:
+                    signal.signal(getattr(signal, i), functools.partial(_receiver.__call__, params))
+                except (ValueError, RuntimeError):
+                    pass
                 signals_reverse[getattr(signal, i)] = i

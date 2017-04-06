@@ -12,10 +12,12 @@ import functools
 import sys
 import threading
 
-from pilot.util.exception_formatter import log_exception
+from exception_formatter import log_exception
 
 import logging
 logger = logging.getLogger(__name__)
+
+DEBUG = False
 
 
 class TimeoutError(RuntimeError):
@@ -59,7 +61,7 @@ class Promise(threading.Thread):
     started = None
     print_exception = None
 
-    def __init__(self, function=None, daemon=True, print_exception=logging.ERROR):
+    def __init__(self, function=None, daemon=False, print_exception=logging.ERROR):
         '''
         Saves function, it's callback and daemon state.
 
@@ -221,7 +223,11 @@ class Promise(threading.Thread):
         '''
         Resolves the name of the Promise.
         '''
-        self.name = 'Notify'
+        func = self.Callable
+        if hasattr(func, 'func_globals') and hasattr(func, 'func_code'):
+            self.name = "%s:%d:%s" % (func.func_globals["__name__"], func.func_code.co_firstlineno, func.__name__)
+        else:
+            self.name = 'Promise(%s)' % str(func)
 
     def __call__(self, *args, **kwargs):
         '''
@@ -295,6 +301,9 @@ class Promise(threading.Thread):
 
         Runs the function and then the callback.
         '''
+        if DEBUG:
+            logging.debug("Thread: %s(%d), called from: %s(%d)" % (self.getName(), self.ident, self.parent[0], self.parent[1]))
+
         try:
             self.Result = self.Callable(*self.args, **self.kwargs)
             self.resolved = True

@@ -17,10 +17,12 @@ import threading
 
 from weakref import WeakSet, WeakKeyDictionary
 
-from pilot.util.exception_formatter import log_exception
+from exception_formatter import log_exception
 
 import logging
 logger = logging.getLogger(__name__)
+
+DEBUG = False
 
 
 class SignalDispatcher(threading.Thread):
@@ -36,6 +38,7 @@ class SignalDispatcher(threading.Thread):
         :param args: arguments of the signal call
         :param kwargs: KV arguments of the signal call
         '''
+        super(SignalDispatcher, self).__init__(name=sig.name)
         self.dispatch_async_signal = sig
         self.args = args
         self.kwargs = kwargs
@@ -51,8 +54,8 @@ class SignalDispatcher(threading.Thread):
         Starts the signal.
         Logs exceptions if necessary.
         '''
-        logger.debug('Thread: %s(%d), called from: %s(%d)' % (self.getName(), self.ident,
-                                                              self.parent[0], self.parent[1]))
+        if DEBUG:
+            logger.debug('Thread: %s(%d), called from: %s(%d)' % (self.getName(), self.ident, self.parent[0], self.parent[1]))
         try:
             self.dispatch_async_signal._just_call(*self.args, **self.kwargs)
         except Exception as e:
@@ -151,7 +154,7 @@ class Signal(object):
 
         Note! Uses inspect.
 
-        :return Signal:
+        :return Signal: the signal of the current frame, if any.
         '''
         frame = inspect.currentframe()
         outer = inspect.getouterframes(frame)
@@ -165,6 +168,24 @@ class Signal(object):
         del outer
         return self
 
+    def debug_frame_message(self):
+        """
+        Outputs a name and a line on which a signal was caught. Debug info.
+        """
+        if not DEBUG:
+            return
+        logger = logging.getLogger("Signal")
+        frame = inspect.currentframe()
+        outer = inspect.getouterframes(frame)
+        signal_frame = outer[2]
+        try:
+            logger.handle(logger.makeRecord(logger.name, logging.DEBUG, signal_frame[1], signal_frame[2],
+                                            signal_frame[4][0].strip() + " -> " + self.name, (), None, "emit"))
+        finally:
+            del signal_frame
+            del outer
+            del frame
+
     def async(self, *args, **kwargs):
         '''
         Emits the signal in the asynchronous mode. Arguments are passed to the callbacks.
@@ -172,6 +193,7 @@ class Signal(object):
         Variadic.
         :return SignalDispatcher:
         '''
+        self.debug_frame_message()
         sd = SignalDispatcher(self, *args, **kwargs)
         sd.start()
         return sd
@@ -182,6 +204,7 @@ class Signal(object):
 
         Variadic, Reentrant.
         '''
+        self.debug_frame_message()
         self._just_call(*args, **kwargs)
         return self
 
