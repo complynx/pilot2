@@ -29,7 +29,7 @@ class SignalDispatcher(threading.Thread):
     '''
     A thread to dispatch a signal if it is emitted in asynchronous mode.
 
-    Like in `async` decorator, here the thread gets the info about it's parent thread and logs it up.
+    Like in `async_decorator.async`, here the thread gets the info about it's parent thread and logs it up.
     '''
     def __init__(self, sig, args, kwargs):
         '''
@@ -62,14 +62,47 @@ class SignalDispatcher(threading.Thread):
             log_exception(e, sys.exc_info())
 
 
+def has_methods(obj, *methods):
+    """
+    For ducktype testers.
+    Tests for methods to exist on objects.
+    :param obj:
+    :param methods: (variadic)
+    :return:
+    """
+    for method in methods:
+        if not hasattr(obj, method) or not callable(getattr(obj, method)):
+            return False
+    return True
+
+
 def is_event_instance(obj):
     '''
-    Ducktype-tester for Event type.
-    Returns True if object has callable set and is_set
+    Ducktype-tester for `threading.Event` type.
+    Returns `True` if object has callable ``set`` and ``is_set``
     :param obj:
     :return: boolean
     '''
-    return hasattr(obj, 'set') and hasattr(obj, 'is_set') and callable(obj.set) and callable(obj.is_set)
+    return has_methods(obj, 'set', 'is_set')
+
+
+def is_condition_instance(obj):
+    '''
+    Ducktype-tester for `threading.Condition` type.
+    Returns `True` if object has callable ``wait``, ``notify``, ``notify_all``, ``acquire`` and ``release``
+    :param obj:
+    :return: boolean
+    '''
+    return has_methods(obj, 'wait', 'notify', 'notify_all', 'acquire', 'release')
+
+
+def is_notifyable(obj):
+    '''
+    Ducktype-tester for `threading.Condition` or `threading.Event` type.
+    :param obj:
+    :return: boolean
+    '''
+    return is_condition_instance(obj) or is_event_instance(obj)
 
 
 class Signal(object):
@@ -116,7 +149,7 @@ class Signal(object):
                         self._methods[slot.im_self] = set()
 
                     self._methods[slot.im_self].add(slot.im_func)
-                elif is_event_instance(slot):
+                elif is_notifyable(slot):
                     self._events.add(slot)
                 else:
                     self._functions.add(slot)
@@ -130,7 +163,7 @@ class Signal(object):
                 if slot.im_self in self._methods and slot.im_func in self._methods[slot.im_self]:
                     return True
                 return False
-            elif is_event_instance(slot):
+            elif is_notifyable(slot):
                 return slot in self._events
             return slot in self._functions
 
@@ -142,7 +175,7 @@ class Signal(object):
             if self.is_connected(slot):
                 if inspect.ismethod(slot):
                     self._methods[slot.im_self].remove(slot.im_func)
-                elif is_event_instance(slot):
+                elif is_notifyable(slot):
                     self._events.remove(slot)
                 else:
                     self._functions.remove(slot)
@@ -212,7 +245,12 @@ class Signal(object):
         with self._slots_lk:
             # Call handler for events
             for ev in self._events:
-                ev.set()
+                if is_event_instance(ev):
+                    ev.set()
+                else:
+                    ev.acquire()
+                    ev.notify_all()
+                    ev.release()
 
             # Call handler functions
             for func in self._functions:
