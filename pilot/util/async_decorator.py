@@ -28,9 +28,28 @@ class TimeoutError(RuntimeError):
     pass
 
 
+def get_first_of(obj, *args):
+    for arg in args:
+        if hasattr(obj, arg):
+            return getattr(obj, arg)
+
+    return None
+
+
 def is_failed(ev):
-    if hasattr(ev, 'exception'):
-        return ev.exception
+    error = get_first_of(ev, 'exception', 'error', 'failure')
+    if error is not None:
+        return error
+
+    if get_first_of(ev, 'failed') or not get_first_of(ev, 'success'):
+        return True
+
+    return None
+
+
+def get_result(ev):
+    return get_first_of(ev, 'result', 'success')
+
 
 class Promise(threading.Thread):
     '''
@@ -92,36 +111,39 @@ class Promise(threading.Thread):
          2) if it's Promise, depend on it.
         Else, pass on, wait for start.
         '''
-        if isinstance(self.Callable, Promise):
-            pr = self.Callable
+        func = self.Callable
 
+        if isinstance(func, Promise):
             def wait_and_resolve():
                 '''
                 Waits for passed in Promise and resolves in the same way.
                 '''
-                pr.wait()
-                if pr.resolved is True:
-                    return pr.Result
+                func.wait()
+                if func.resolved is True:
+                    return func.Result
                 else:
-                    raise pr.exception
+                    raise func.exception
 
             self.Callable = wait_and_resolve
             self()
 
-        elif is_notifyable(self.Callable):
-            nf = self.Callable
-
+        elif is_notifyable(func):
             def wait_event():
                 '''
                 Waits for notifyable to be set.
                 '''
+                func.wait()
+                err = is_failed(func)
+                if err is not None:
+                    raise err
 
-                nf.wait()
-                if nf
+                return get_result(func)
 
+            self.Callable = wait_event
+            self()
 
-        elif not callable(self.Callable):
-            self.Result = self.Callable
+        elif not callable(func):
+            self.Result = func
             self.started.set()
             self.finished.set()
             self.resolved = True
