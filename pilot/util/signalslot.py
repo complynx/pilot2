@@ -18,6 +18,7 @@ import threading
 from weakref import WeakSet, WeakKeyDictionary
 
 from exception_formatter import log_exception
+from threading_interfaces import is_event_interface, is_condition_interface, notify_or_set
 
 import logging
 logger = logging.getLogger(__name__)
@@ -60,49 +61,6 @@ class SignalDispatcher(threading.Thread):
             self.dispatch_async_signal._just_call(*self.args, **self.kwargs)
         except Exception as e:
             log_exception(e, sys.exc_info())
-
-
-def has_methods(obj, *methods):
-    """
-    For ducktype testers.
-    Tests for methods to exist on objects.
-    :param obj:
-    :param methods: (variadic)
-    :return:
-    """
-    for method in methods:
-        if not hasattr(obj, method) or not callable(getattr(obj, method)):
-            return False
-    return True
-
-
-def is_event_instance(obj):
-    '''
-    Ducktype-tester for `threading.Event` type.
-    Returns `True` if object has callable ``set`` and ``is_set``
-    :param obj:
-    :return: boolean
-    '''
-    return has_methods(obj, 'set', 'is_set')
-
-
-def is_condition_instance(obj):
-    '''
-    Ducktype-tester for `threading.Condition` type.
-    Returns `True` if object has callable ``wait``, ``notify``, ``notify_all``, ``acquire`` and ``release``
-    :param obj:
-    :return: boolean
-    '''
-    return has_methods(obj, 'wait', 'notify', 'notify_all', 'acquire', 'release')
-
-
-def is_notifyable(obj):
-    '''
-    Ducktype-tester for `threading.Condition` or `threading.Event` type.
-    :param obj:
-    :return: boolean
-    '''
-    return is_condition_instance(obj) or is_event_instance(obj)
 
 
 class Signal(object):
@@ -149,7 +107,7 @@ class Signal(object):
                         self._methods[slot.im_self] = set()
 
                     self._methods[slot.im_self].add(slot.im_func)
-                elif is_notifyable(slot):
+                elif is_event_interface(slot) or is_condition_interface(slot):
                     self._events.add(slot)
                 else:
                     self._functions.add(slot)
@@ -163,7 +121,7 @@ class Signal(object):
                 if slot.im_self in self._methods and slot.im_func in self._methods[slot.im_self]:
                     return True
                 return False
-            elif is_notifyable(slot):
+            elif is_event_interface(slot) or is_condition_interface(slot):
                 return slot in self._events
             return slot in self._functions
 
@@ -175,7 +133,7 @@ class Signal(object):
             if self.is_connected(slot):
                 if inspect.ismethod(slot):
                     self._methods[slot.im_self].remove(slot.im_func)
-                elif is_notifyable(slot):
+                elif is_event_interface(slot) or is_condition_interface(slot):
                     self._events.remove(slot)
                 else:
                     self._functions.remove(slot)
@@ -245,12 +203,7 @@ class Signal(object):
         with self._slots_lk:
             # Call handler for events
             for ev in self._events:
-                if is_event_instance(ev):
-                    ev.set()
-                else:
-                    ev.acquire()
-                    ev.notify_all()
-                    ev.release()
+                notify_or_set(ev)
 
             # Call handler functions
             for func in self._functions:
