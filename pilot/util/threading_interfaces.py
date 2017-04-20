@@ -42,7 +42,7 @@ def is_condition_interface(obj):
     return has_methods(obj, 'wait', 'notify', 'notify_all', 'acquire', 'release')
 
 
-def is_event_or_condition(obj):
+def is_notifyable(obj):
     '''
     Ducktype-tester for `threading.Condition` or `threading.Event` type.
     :param obj:

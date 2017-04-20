@@ -13,6 +13,7 @@ import sys
 import threading
 
 from exception_formatter import log_exception
+from threading_interfaces import is_notifyable
 
 import logging
 logger = logging.getLogger(__name__)
@@ -26,6 +27,10 @@ class TimeoutError(RuntimeError):
     '''
     pass
 
+
+def is_failed(ev):
+    if hasattr(ev, 'exception'):
+        return ev.exception
 
 class Promise(threading.Thread):
     '''
@@ -93,7 +98,6 @@ class Promise(threading.Thread):
             def wait_and_resolve():
                 '''
                 Waits for passed in Promise and resolves in the same way.
-                :return:
                 '''
                 pr.wait()
                 if pr.resolved is True:
@@ -103,6 +107,18 @@ class Promise(threading.Thread):
 
             self.Callable = wait_and_resolve
             self()
+
+        elif is_notifyable(self.Callable):
+            nf = self.Callable
+
+            def wait_event():
+                '''
+                Waits for notifyable to be set.
+                '''
+
+                nf.wait()
+                if nf
+
 
         elif not callable(self.Callable):
             self.Result = self.Callable
