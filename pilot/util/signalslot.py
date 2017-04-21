@@ -72,12 +72,31 @@ class Signal(object):
     ``sig = Signal(emitter=foo)``.
 
     To emit it, just call your ``sig()``.
-    Or emit it in asynchronous mode: ``sig.async()``.
+    Or emit it in asynchronous mode with the method `async`.
+
+    Example:
+
+    ..code-block:: python
+
+        # Creating
+        sig = Signal()
+        # Or
+        myobject.signal = Signal(emitter=myobject)
+
+        # Connecting to signals
+        sig.connect(callback)
+        myobject.signal.connect(sig)
+        myobject.signal.connect(otherobject.callback_method)
+
+        # Emitting
+        sig()
+        myobject.signal('argument(s)', optional=True)
+
+        # Emitting in asynchronous mode
+        sig.async()
 
     To connect slots to it, pass callbacks into `connect`. The connections are maintained through `weakref`, thus
     you don't need to search for them and disconnect whenever you're up to destroy some object.
-
-    TODO: Events
     '''
     name = 'BasicSignal'
 
