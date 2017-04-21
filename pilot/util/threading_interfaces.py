@@ -62,3 +62,46 @@ def notify_or_set(obj):
         obj.release()
     else:
         obj.set()
+
+
+def _get_first_of(obj, *args):
+    """
+    Helper function, returns first existing property of the object that is not None.
+    :param obj:
+    :param args: variadic, names of the properties
+    :return:
+    """
+    for arg in args:
+        if hasattr(obj, arg):
+            prop = getattr(obj, arg)
+            if prop is not None:
+                return prop
+
+    return None
+
+
+def is_failed(ev):
+    """
+    Returns failure of the `threading.Event` or `threading.Condition` if they were supplied through the properties of the object.
+    If no failure supplied, `None` is returned.
+    :param ev: `threading.Event` or `threading.Condition`
+    :return:
+    """
+    error = _get_first_of(ev, 'exception', 'error', 'failure')
+    if error is not None:
+        return error
+
+    if _get_first_of(ev, 'failed') or not _get_first_of(ev, 'success'):
+        return True
+
+    return None
+
+
+def get_result(ev):
+    """
+    Returns result of the `threading.Event` or `threading.Condition` if they were supplied through the properties of the object.
+    If no result supplied, `None` is returned.
+    :param ev: `threading.Event` or `threading.Condition`
+    :return:
+    """
+    return _get_first_of(ev, 'result', 'success')

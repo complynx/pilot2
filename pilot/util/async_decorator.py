@@ -13,7 +13,7 @@ import sys
 import threading
 
 from exception_formatter import log_exception
-from threading_interfaces import is_notifyable
+from threading_interfaces import is_notifyable, get_result, is_failed
 
 import logging
 logger = logging.getLogger(__name__)
@@ -28,50 +28,29 @@ class TimeoutError(RuntimeError):
     pass
 
 
-def get_first_of(obj, *args):
-    for arg in args:
-        if hasattr(obj, arg):
-            return getattr(obj, arg)
-
-    return None
-
-
-def is_failed(ev):
-    error = get_first_of(ev, 'exception', 'error', 'failure')
-    if error is not None:
-        return error
-
-    if get_first_of(ev, 'failed') or not get_first_of(ev, 'success'):
-        return True
-
-    return None
-
-
-def get_result(ev):
-    return get_first_of(ev, 'result', 'success')
-
-
 class Promise(threading.Thread):
     '''
     This is a threading wrapper that performs asynchronous call of the provided function.
 
     Basic usage:
-    ```python
-    promise = Promise(func)(...args)
-    result = promise.wait()
-    #  or
-    result = Promise(func)(...args).wait()
 
-    #  callbacks
-    def callback(result):
-        print result
-    def exception_catcher(exception):
-        log(exception)
-    def some_final(_):
-        cleanup()
+    .. code-block:: python
 
-    Promise(func)(...args).then(callback, exception_catcher).then(some_final)
-    ```
+        promise = Promise(func)(...args)
+        result = promise.wait()
+        #  or
+        result = Promise(func)(...args).wait()
+
+        #  callbacks
+        def callback(result):
+            print result
+        def exception_catcher(exception):
+            log(exception)
+        def some_final(_):
+            cleanup()
+
+        Promise(func)(...args).then(callback, exception_catcher).then(some_final)
+
     For advanced usage, see https://developer.mozilla.org/ru/docs/Web/JavaScript/Reference/Global_Objects/Promise
     It is close to that document, though functions in Promises can use any arguments and should be started manually.
     Rejections thus are based on exceptions and resolutions are simply function results.
@@ -89,10 +68,10 @@ class Promise(threading.Thread):
         '''
         Saves function, it's callback and daemon state.
 
-        :param (Callable) function: The function to call.
-        :param (Boolean) daemon: Whether the thread is a daemon.
-                                 Daemon threads die automatically when no other threads are left.
-        :param print_exception: Log level to output the exception, or None to mute it.
+        :param function: The function to call.
+        :param Boolean daemon: Whether the thread is a daemon.
+                               Daemon threads die automatically when no other threads are left.
+        :param print_exception: Log level to output the exception, or `None` to mute it. See `logging`.
         '''
         super(Promise, self).__init__()
         self.print_exception = print_exception
@@ -106,9 +85,12 @@ class Promise(threading.Thread):
 
     def __check_callable(self):
         '''
-        Checks what to do with Callable:
+        Checks what to do with `Callable`:
+
          1) if it is not callable, treat it as a result.
-         2) if it's Promise, depend on it.
+         2) if it's `Promise`, depend on it.
+         3) if it's `threading.Event` or `threading.Condition`, wait for it and resolve.
+
         Else, pass on, wait for start.
         '''
         func = self.Callable
@@ -116,7 +98,7 @@ class Promise(threading.Thread):
         if isinstance(func, Promise):
             def wait_and_resolve():
                 '''
-                Waits for passed in Promise and resolves in the same way.
+                Waits for passed in `Promise` and resolves in the same way.
                 '''
                 func.wait()
                 if func.resolved is True:
@@ -151,9 +133,10 @@ class Promise(threading.Thread):
     @staticmethod
     def resolve(thing):
         '''
-        Creates a Promise resolved to `thing`.
-        :param thing:
-        :return: Promise
+        Creates a `Promise` resolved to ``thing``.
+
+        :param thing: thing to resolve.
+        :rtype: Promise
         '''
         p = Promise()
         p.Result = thing
@@ -162,9 +145,10 @@ class Promise(threading.Thread):
     @staticmethod
     def reject(thing):
         '''
-        Creates a Promise rejected to `thing`.
-        :param thing:
-        :return: Promise
+        Creates a `Promise` rejected to ``thing``.
+
+        :param thing: thing to reject.
+        :rtype: Promise
         '''
         p = Promise()
         p.exception = thing
@@ -174,14 +158,16 @@ class Promise(threading.Thread):
     @staticmethod
     def all(things):
         '''
-        Creates a Promise that waits to each one of `things`, or rejects with the first one of them.
-        :param (Array) things:
-        :return: Promise
+        Creates a `Promise` that waits for each one of ``things``, or rejects with the first failed one of them.
+
+        :param list things: things to wait.
+        :rtype: Promise
         '''
         def all_resolver():
             '''
-            Internal, resolver for the new Promise.
-            :return: results array
+            Internal, resolver for the new `Promise`.
+
+            :return list: results
             '''
             stop = threading.Event()
             stop.rejected = None
@@ -193,8 +179,9 @@ class Promise(threading.Thread):
                     def closure(i, thing):
                         '''
                         Closure to save indexes.
+
                         :param i: index
-                        :param thing: current Promise
+                        :param thing: current `Promise`
                         :return:
                         '''
                         def resolver(result):
@@ -224,13 +211,15 @@ class Promise(threading.Thread):
     @staticmethod
     def race(things):
         '''
-        Creates a Promise that waits to any of `things` and returns it's result.
-        :param (Array) things:
-        :return: Promise
+        Creates a `Promise` that waits to any of ``things`` and returns it's result.
+
+        :param list things: things to wait.
+        :rtype: Promise
         '''
         def all_resolver():
             '''
-            Internal, resolver for the new Promise.
+            Internal, resolver for the new `Promise`.
+
             :return: result
             '''
             stop = threading.Event()
@@ -292,7 +281,8 @@ class Promise(threading.Thread):
         :raises TimeoutError: when timeout reached.
 
         :param timeout: seconds, optional.
-        :return:
+        :type timeout: int or None
+        :return: Result of the function.
         '''
         if not self.finished.is_set():
             self.finished.wait(timeout)
@@ -304,10 +294,11 @@ class Promise(threading.Thread):
     def then(self, resolved=None, failed=None, print_exception=None):
         '''
         The promise result. This function creates a new Promise which waits for current one, and calls corresponding function:
+
         :param resolved: Is called when function ended up conveniently. Receives result as a parameter.
         :param failed: Is called if function raises an exception, receives the exception.
-        :param print_exception: Log level to output the exception, or None to mute it.
-        :return: new Promise
+        :param print_exception: Log level to output the exception, or None to mute it. See `logging`.
+        :rtype: Promise
         '''
         self.print_exception = print_exception
 
@@ -326,10 +317,11 @@ class Promise(threading.Thread):
 
     def catch(self, callback=None, print_exception=None):
         '''
-        Same as Promise::then(None, callback)
+        Same as `then` ``(None, callback)``
+
         :param callback: Is called if function raises an exception, receives the exception.
         :param print_exception: Log level to output the exception, or None to mute it.
-        :return: new Promise
+        :rtype: Promise
         '''
         return self.then(failed=callback, print_exception=print_exception)
 
@@ -362,28 +354,29 @@ def async(function=None, daemon=False, print_exception=logging.ERROR):
     Used as a plain decorator or along with named arguments.
 
     Usage:
-    ```python
-    @async
-    def f1():
-        pass
 
-    @async(daemon=True)
-    def f2():
-        pass
-    ```
+    .. code-block:: python
 
-    :param (Callable) function: The function to be decorated.
-    :param (Boolean) daemon: Optional. Create the daemon thread, that will die when no other threads left.
-    :param print_exception: Log level to log the exception, if any, or None to mute it.
-    :return Callable: Wrapped function.
+        @async
+        def f1():
+            pass
+
+        @async(daemon=True)
+        def f2():
+            pass
+
+    :param function: The function to be decorated.
+    :param Boolean daemon: Optional. Create the daemon thread, that will die when no other threads left.
+    :param print_exception: Log level to log the exception, if any, or None to mute it. See `logging`.
+    :return: Wrapped function.
     '''
     if function is None:
         def add_async_callback(func):
             '''
             A second stage of a wrapper that is used if a wrapper is called with arguments.
 
-            :param (Callable) func: The function to be decorated.
-            :return Callable: Wrapped function.
+            :param func: The function to be decorated.
+            :return: Wrapped function.
             '''
             return async(func, daemon, print_exception)
         return add_async_callback
@@ -393,7 +386,8 @@ def async(function=None, daemon=False, print_exception=logging.ERROR):
             '''
             An actual wrapper, that creates a thread.
 
-            :return Promise: Thread of the function.
+            :return: Thread of the function.
+            :rtype: Promise
             '''
             return Promise(function,
                            daemon=daemon,

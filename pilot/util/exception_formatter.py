@@ -20,12 +20,12 @@ def log_exception(exception, exc_info=sys.exc_info(), level=logging.WARNING):
     '''
     Exception formatter and logger.
 
-    Logs a caught exception into the Logger 'Exception' according to logging configs.
-    Unlike python logger, this will output stack trace in the reverse way (easier to look) and with better readability.
+    Logs a caught exception into the `logging` according to logging configs and exception handling.
+    Unlike `logging.Logger`, this will output stack trace in the reverse way (easier to look) and with better readability.
     Also, prints out thread information, because this is very useful in massively threaded case.
 
     :param (Exception) exception:
-    :param exc_info: Optional, the output of the `sys.exc_info()`, if it was caught earlier.
+    :param exc_info: Optional, the output of the ``sys.exc_info()``, if it was caught earlier.
     :param level: Optional, the desired level of the logging.
     '''
     try:

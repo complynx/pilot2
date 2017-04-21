@@ -20,10 +20,50 @@ Welcome to Pilot 2's documentation!
    :caption: Contents:
 
 
-Test documentation
-==================
+async_decorator
+===============
 
-.. automodule:: pilot.util.https
+.. automodule:: pilot.util.async_decorator
+    :members:
+    :private-members:
+    :special-members:
+    :undoc-members:
+
+
+exception_formatter
+===================
+
+.. automodule:: pilot.util.exception_formatter
+    :members:
+    :private-members:
+    :special-members:
+    :undoc-members:
+
+
+signalling
+==========
+
+.. automodule:: pilot.util.signalling
+    :members:
+    :private-members:
+    :special-members:
+    :undoc-members:
+
+
+signalslot
+==========
+
+.. automodule:: pilot.util.signalslot
+    :members:
+    :private-members:
+    :special-members:
+    :undoc-members:
+
+
+threading_interfaces
+====================
+
+.. automodule:: pilot.util.threading_interfaces
     :members:
     :private-members:
     :special-members:

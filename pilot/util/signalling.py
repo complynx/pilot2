@@ -85,6 +85,7 @@ if os.name == 'nt':
     def handler(sig):
         '''
         This function creates an inspection frame for windows handlers.
+
         :param (int) sig: caught signal.
         :return:
         '''
@@ -96,6 +97,7 @@ def interrupt(sig=graceful_terminator, params=None):
     '''
     This function simulates signal calling.
     It creates an inspection frame and passes it to receivers.
+
     :param (int) sig: caught signal, default is `graceful_terminator`
     '''
     frame = inspect.currentframe()
@@ -107,7 +109,7 @@ def interrupt(sig=graceful_terminator, params=None):
 
 def graceful_stop_event():
     '''
-    As threading.Event, this is just a factory.
+    As `threading.Event`, this is just a factory.
     '''
     ret = threading.Event()
     signal_all_setup(func=ret)

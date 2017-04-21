@@ -35,7 +35,8 @@ class SignalDispatcher(threading.Thread):
     def __init__(self, sig, args, kwargs):
         '''
         Sets up necessary parameters like thread name, it's parent's name and id, emitter...
-        :param (Signal) sig: signal reference
+
+        :param Signal sig: signal reference
         :param args: arguments of the signal call
         :param kwargs: KV arguments of the signal call
         '''
@@ -67,13 +68,13 @@ class Signal(object):
     '''
     This class provides Signal-Slot pattern from Qt to python.
 
-    To create a signal, just make a `sig = Signal` and set up an emitter of it. Or create it with
-    `sig = Signal(emitter=foo)`.
+    To create a signal, just make a ``sig = Signal`` and set up an emitter of it. Or create it with
+    ``sig = Signal(emitter=foo)``.
 
-    To emit it, just call your `sig()`.
-    Or emit it in asynchronous mode: `sig.async()`.
+    To emit it, just call your ``sig()``.
+    Or emit it in asynchronous mode: ``sig.async()``.
 
-    To connect slots to it, pass callbacks into `sig.connect`. The connections are maintained through weakrefs, thus
+    To connect slots to it, pass callbacks into `connect`. The connections are maintained through `weakref`, thus
     you don't need to search for them and disconnect whenever you're up to destroy some object.
 
     TODO: Events
