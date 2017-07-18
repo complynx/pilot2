@@ -6,3 +6,6 @@
 #
 # Authors:
 # - Mario Lassnig, mario.lassnig@cern.ch, 2016
+# - Daniel Drizhuk, d.drizhuk@gmail.com, 2017
+
+from main import Pilot

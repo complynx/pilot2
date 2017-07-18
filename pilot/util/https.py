@@ -168,12 +168,13 @@ def request(url, data=None, plain=False):
             req.add_header('Accept', 'application/json')
         req.add_header('User-Agent', _ctx.user_agent)
         try:
-            output = urllib2.urlopen(req, context=_ctx.ssl_context)
+            result = urllib2.urlopen(req, context=_ctx.ssl_context)
         except urllib2.HTTPError as e:
             logger.warn('server error (%s): %s' % (e.code, e.read()))
             return None
         except urllib2.URLError as e:
             logger.warn('connection error: %s' % e.reason)
             return None
+        output = result.read()
 
     return output if plain else json.loads(output)

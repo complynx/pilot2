@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 DEBUG = False
 
 
-class SignalDispatcher(threading.Thread):
+class SignalThread(threading.Thread):
     '''
     A thread to dispatch a signal if it is emitted in asynchronous mode.
 
@@ -40,7 +40,7 @@ class SignalDispatcher(threading.Thread):
         :param args: arguments of the signal call
         :param kwargs: KV arguments of the signal call
         '''
-        super(SignalDispatcher, self).__init__(name=sig.name)
+        super(SignalThread, self).__init__(name=sig.name)
         self.dispatch_async_signal = sig
         self.args = args
         self.kwargs = kwargs
@@ -205,7 +205,7 @@ class Signal(object):
         :return SignalDispatcher:
         '''
         self.debug_frame_message()
-        sd = SignalDispatcher(self, *args, **kwargs)
+        sd = SignalThread(self, *args, **kwargs)
         sd.start()
         return sd
 
@@ -233,3 +233,18 @@ class Signal(object):
             for obj, funcs in self._methods.items():
                 for func in funcs:
                     func(obj, *args, **kwargs)
+
+
+class Signaller(object):
+    """
+    Object with signals. All signals in it have back references and names.
+    """
+    def __init__(self):
+        """
+        Initializes signals
+        """
+        for i in dir(self):
+            v = object.__getattribute__(self, i)
+            if isinstance(v, Signal):
+                v.name = i
+                v.emitter = self
