@@ -10,19 +10,11 @@
 import sys
 import argparse
 import logging
-import ConfigParser
-import os
 
 from util import signalslot, https
+from util.config import config
 
 VERSION = '2017-07-18.001 dan'
-
-_default_cfg = os.path.join(os.path.dirname(__file__), 'default.cfg')
-_locations = [
-    os.path.expanduser('~/.panda/pilot.cfg'),
-    '/etc/panda/pilot.cfg',
-    './pilot.cfg'
-]
 
 
 class Pilot(signalslot.Signaller):
@@ -32,8 +24,6 @@ class Pilot(signalslot.Signaller):
 
     def __init__(self):
         super(Pilot, self).__init__()
-        self.config = ConfigParser.ConfigParser()
-        self.config.readfp(open(_default_cfg))
         self.set_arguments()
 
     def set_arguments(self):
@@ -94,8 +84,8 @@ class Pilot(signalslot.Signaller):
         self.arg_parser = arg_parser
 
     def setup(self):
+        config.read(self.args.config)
         self.set_logging()
-        self.config.read([self.args.config] + _locations)
         https.https_setup(self.args, VERSION)
 
     def set_logging(self):
