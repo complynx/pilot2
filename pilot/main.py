@@ -10,18 +10,30 @@
 import sys
 import argparse
 import logging
+import ConfigParser
+import os
 
 from util import signalslot, https
 
 VERSION = '2017-07-18.001 dan'
 
+_default_cfg = os.path.join(os.path.dirname(__file__), 'default.cfg')
+_locations = [
+    os.path.expanduser('~/.panda/pilot.cfg'),
+    '/etc/panda/pilot.cfg',
+    './pilot.cfg'
+]
+
 
 class Pilot(signalslot.Signaller):
     arg_parser = None
     args = None
+    config = None
 
     def __init__(self):
         super(Pilot, self).__init__()
+        self.config = ConfigParser.ConfigParser()
+        self.config.readfp(open(_default_cfg))
         self.set_arguments()
 
     def set_arguments(self):
@@ -56,11 +68,10 @@ class Pilot(signalslot.Signaller):
                                 required=True,
                                 help='MANDATORY: queue name (e.g., AGLT2_TEST-condor')
 
-        # graciously stop pilot process after hard limit
         arg_parser.add_argument('-j',
                                 dest='job_label',
-                                default='mtest',
-                                help='job prod/source label (default: mtest)')
+                                default='ptest_d',
+                                help='job prod/source label (default: ptest_d)')
 
         # SSL certificates
         arg_parser.add_argument('--cacert',
@@ -74,10 +85,17 @@ class Pilot(signalslot.Signaller):
                                 help='CA certificates path',
                                 metavar='path/to/certificates/')
 
+        arg_parser.add_argument('--config',
+                                dest='config',
+                                default='',
+                                help='Pilot configuration file',
+                                metavar='path/to/pilot_conf.json')
+
         self.arg_parser = arg_parser
 
     def setup(self):
         self.set_logging()
+        self.config.read([self.args.config] + _locations)
         https.https_setup(self.args, VERSION)
 
     def set_logging(self):

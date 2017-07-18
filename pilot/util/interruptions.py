@@ -8,7 +8,6 @@
 # - Daniel Drizhuk, d.drizhuk@gmail.com, 2017
 # - Mario Lassnig, mario.lassnig@cern.ch, 2017
 
-import functools
 import inspect
 import os
 import signal
@@ -21,12 +20,12 @@ logger = logging.getLogger(__name__)
 
 _is_set_up = False
 
-signals_reverse = {}
+signal_names = {}
 '''
 These hold names of the signals in the respect to their numbers. Useful for logs.
 '''
 
-graceful_terminator = signal.SIGTERM
+SIGTERM = signal.SIGTERM
 '''
 When on UNIX and others, just a SIGTERM, but on Windows -- a CTRL_BREAK_EVENT.
 Can be used to inform a child of the graceful shutdown or other stuff.
@@ -36,13 +35,14 @@ _receiver = Signal(signal, docstring='''
 This signal (from signal/slot pattern) will serve the signal (from OS) for it's listeners.
 ''')
 _receiver.name = 'OS Signal dispatcher'
+_receiver.emitter = signal
 
 if os.name == 'nt':
     '''
     The biggest problem of all the systems is the Windows support.
     Here comes the Ctri+C and Ctrl+Break signal handler, and override of the graceful terminator.
     '''
-    graceful_terminator = signal.CTRL_BREAK_EVENT
+    SIGTERM = signal.CTRL_BREAK_EVENT
 
     import ctypes
     from ctypes import wintypes
@@ -77,8 +77,8 @@ if os.name == 'nt':
             _kernel32.SetConsoleCtrlHandler(h, True)
             _console_ctrl_handlers[handler] = h
 
-    signals_reverse[signal.CTRL_C_EVENT] = 'CTRL_C_EVENT'
-    signals_reverse[signal.CTRL_BREAK_EVENT] = 'CTRL_BREAK_EVENT'
+    signal_names[signal.CTRL_C_EVENT] = 'CTRL_C_EVENT'
+    signal_names[signal.CTRL_BREAK_EVENT] = 'CTRL_BREAK_EVENT'
 
     _receiver.emitter = _kernel32
 
@@ -93,7 +93,7 @@ if os.name == 'nt':
         return 1
 
 
-def interrupt(sig=graceful_terminator, params=None):
+def interrupt(sig=SIGTERM):
     '''
     This function simulates signal calling.
     It creates an inspection frame and passes it to receivers.
@@ -102,21 +102,21 @@ def interrupt(sig=graceful_terminator, params=None):
     '''
     frame = inspect.currentframe()
     try:
-        _receiver(sig, frame, params)
+        _receiver(sig, frame)
     finally:
         del frame
 
 
-def graceful_stop_event():
+def interruption():
     '''
     As `threading.Event`, this is just a factory.
     '''
     ret = threading.Event()
-    signal_all_setup(func=ret)
+    on_interrupt(func=ret)
     return ret
 
 
-def signal_all_setup(func=None, params=None):
+def on_interrupt(func=None):
     '''
     Tries to establish catching all the signals possible and adds the callback to a _receiver.
     Also fills up all signals for a reverse lookup.
@@ -138,7 +138,7 @@ def signal_all_setup(func=None, params=None):
                   'SIGQUIT', 'SIGSEGV', 'SIGXCPU', 'SIGBUS', 'SIGILL', 'SIGBREAK']:
             if hasattr(signal, i):
                 try:
-                    signal.signal(getattr(signal, i), functools.partial(_receiver.__call__, params))
+                    signal.signal(getattr(signal, i), _receiver)
                 except (ValueError, RuntimeError):
                     pass
-                signals_reverse[getattr(signal, i)] = i
+                signal_names[getattr(signal, i)] = i
