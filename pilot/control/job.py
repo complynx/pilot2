@@ -15,9 +15,62 @@ import time
 import urllib
 
 from pilot.util import https
+from pilot.util.signalslot import Signal, Signaller
 
 import logging
 logger = logging.getLogger(__name__)
+
+
+class Job(Signaller):
+    validated = Signal()
+    prepared = Signal()
+    started = Signal()
+    finished = Signal()
+    failed = Signal()
+    state_changed = Signal()
+    _state = None
+    log = None
+
+    def __init__(self, job_res):
+        super(Job, self).__init__()
+        self.log = logger.getChild(str(job_res['PandaID']))
+        self.job_res = job_res
+
+        self.validated.connect(self.prepare)
+
+    @property
+    def state(self):
+        return self._state
+
+    @state.setter
+    def state(self, state):
+        if self._state != state:
+            self._state = state
+
+            self.state_changed()
+
+
+    def validate(self):
+        self.validated()
+
+    def prepare(self):
+        log = self.log
+        job = self.job_res
+
+        log.debug('creating job working directory')
+        job_dir = 'job-%s' % job['PandaID']
+
+        os.mkdir(job_dir)
+        job['working_dir'] = job_dir
+
+        log.debug('symlinking pilot log')
+        os.symlink('../pilotlog.txt', os.path.join(job_dir, 'pilotlog.txt'))
+
+        self.prepared()
+
+    def run(self):
+        self.validate()
+
 
 
 def control(queues, traces, args):

@@ -13,6 +13,9 @@ import logging
 
 from util import signalslot, https
 from util.config import config
+from util.signalslot import Signal
+from control.queue import Queue
+from control.job import Job
 
 VERSION = '2017-07-18.001 dan'
 
@@ -21,6 +24,9 @@ class Pilot(signalslot.Signaller):
     arg_parser = None
     args = None
     config = None
+    ready_get_job = Signal()
+    queue = None
+    job = None
 
     def __init__(self):
         super(Pilot, self).__init__()
@@ -105,3 +111,13 @@ class Pilot(signalslot.Signaller):
     def run(self, argv=sys.argv):
         self.args = self.arg_parser.parse_args(argv[1:])
         self.setup()
+
+        self.queue = Queue()
+        self.ready_get_job.connect(self.queue.get_job)
+        self.queue.got_job.connect(self.on_got_job)
+
+        self.ready_get_job()
+
+    def on_got_job(self, job_res):
+        self.job = Job(job_res)
+

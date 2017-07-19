@@ -16,7 +16,7 @@ import sys
 # from pilot.util.constants import SUCCESS, FAILURE, ERRNO_NOJOBS
 # from pilot.util.https import https_setup
 # from pilot.util.information import set_location
-from pilot import Pilot
+from pilot import pilot
 
 VERSION = '2017-07-18.001'
 
@@ -38,7 +38,6 @@ VERSION = '2017-07-18.001'
 
 
 if __name__ == '__main__':
-    pilot = Pilot()
     pilot.run()
 
     # arg_parser = argparse.ArgumentParser()

@@ -9,3 +9,6 @@
 # - Daniel Drizhuk, d.drizhuk@gmail.com, 2017
 
 from main import Pilot
+from util.config import config
+
+pilot = Pilot()
